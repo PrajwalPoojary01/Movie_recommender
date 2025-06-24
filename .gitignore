@@ -1,0 +1,21 @@
+# Ignore sensitive or unnecessary files
+config.py
+users.db
+similarity.pkl
+movie_dict.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# VSCode or PyCharm
+.vscode/
+.idea/
