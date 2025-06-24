@@ -6,7 +6,7 @@ st.title("📝 Sign Up")
 
 # If already logged in, redirect to main
 if st.session_state.get("logged_in"):
-    st.switch_page("main.py")
+    st.switch_page("main.py")  # if main is in root
     st.stop()
 
 # Input fields
@@ -18,7 +18,14 @@ if st.button("Register"):
     success = register_user(new_username, new_password)
 
     if success:
-        # Redirect to login after successful signup
-        st.switch_page("01_login")
+        # ✅ Set a session flag to show after redirect (optional)
+        st.session_state.signup_success = True
+
+        # ✅ Redirect to login by reloading the app with ?page=01_login
+        st.markdown("""
+            <meta http-equiv="refresh" content="0; url=/?page=01_login">
+        """, unsafe_allow_html=True)
+        st.stop()
+
     else:
         st.error("❌ Username already exists. Try a different one.")
