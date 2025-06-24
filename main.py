@@ -1,10 +1,16 @@
+
 import streamlit as st
 from utils import show_logout_button
 show_logout_button()
 
 
+
 st.set_page_config(page_title="Movie Recommender", layout="wide")
 st.title("🎬 Welcome to Movie Recommender System")
+
+params = st.experimental_get_query_params()
+if params.get("page") == ["main"]:
+    st.success("Welcome to the main page!")
 
 # ✅ Show login success if redirected
 if st.query_params.get("start") == "main":

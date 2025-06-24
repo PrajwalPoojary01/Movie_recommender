@@ -4,6 +4,11 @@ import time
 
 st.title("🔐 Login")
 
+if st.session_state.get("signup_success"):
+    st.success("✅ Signup successful! You can now log in.")
+    del st.session_state.signup_success
+
+
 # If already logged in, skip login page
 if st.session_state.get("logged_in"):
     st.switch_page("main.py")  # Automatically redirects if user visits login again

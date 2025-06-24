@@ -1,7 +1,9 @@
 import streamlit as st
 import requests
 from utils import show_movie_details, show_logout_button
-from config import TMDB_API_KEY as API_KEY
+import streamlit as st
+API_KEY = st.secrets["TMDB_API_KEY"]
+
 
 st.set_page_config(page_title="Search", layout="wide")
 show_logout_button()

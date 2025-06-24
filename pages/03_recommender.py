@@ -4,7 +4,9 @@ import pandas as pd
 import requests
 from utils import show_movie_details, show_logout_button
 from db import get_history
-from config import TMDB_API_KEY as API_KEY
+import streamlit as st
+API_KEY = st.secrets["TMDB_API_KEY"]
+
 
 st.set_page_config(page_title="Recommender", layout="wide")
 show_logout_button()

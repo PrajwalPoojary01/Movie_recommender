@@ -4,8 +4,10 @@ import pandas as pd
 import requests
 import os
 from db import get_watchlist, remove_from_watchlist, clear_watchlist
-from config import TMDB_API_KEY as API_KEY
 from utils import show_movie_details, show_logout_button
+import streamlit as st
+API_KEY = st.secrets["TMDB_API_KEY"]
+
 
 # ✅ Logout button in sidebar
 show_logout_button()
