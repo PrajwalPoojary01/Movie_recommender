@@ -19,6 +19,6 @@ if st.button("Register"):
 
     if success:
         # Redirect to login after successful signup
-        st.switch_page("01_login.py")
+        st.switch_page("01_login")
     else:
         st.error("❌ Username already exists. Try a different one.")
