@@ -8,7 +8,7 @@ show_logout_button()
 st.set_page_config(page_title="Movie Recommender", layout="wide")
 st.title("🎬 Welcome to Movie Recommender System")
 
-params = st.query_params()
+params = st.query_params
 if params.get("page") == ["main"]:
     st.success("Welcome to the main page!")
 
