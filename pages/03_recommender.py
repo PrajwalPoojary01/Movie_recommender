@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
+import io
 from utils import show_movie_details, show_logout_button
 from db import get_history
 import streamlit as st
@@ -17,9 +18,17 @@ if not st.session_state.get("logged_in", False):
     st.stop()
 
 # Load movie data
-movies_dict = pickle.load(open("movie_dict.pkl", "rb"))
-movies = pd.DataFrame(movies_dict)
-similarity = pickle.load(open("similarity.pkl", "rb"))
+def load_pickle_from_gdrive(file_id):
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    response = requests.get(url)
+    return pickle.load(io.BytesIO(response.content))
+
+# Load files from Google Drive
+movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
+similarity_file_id = "1XqsEgeNAtif14CnNSBPBRad4iJDTDE08"
+
+movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
+similarity = load_pickle_from_gdrive(similarity_file_id)
 
 # Initialize state
 if "selected_movie_id" not in st.session_state:

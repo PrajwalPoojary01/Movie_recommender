@@ -15,7 +15,14 @@ if not st.session_state.get("logged_in", False):
     st.stop()
 
 # Load movies
-movies_dict = pickle.load(open("movie_dict.pkl", "rb"))
+def load_pickle_from_gdrive(file_id):
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    response = requests.get(url)
+    return pickle.load(io.BytesIO(response.content))
+
+# Load movie_dict.pkl from Google Drive
+movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
+movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
 movies = pd.DataFrame(movies_dict)
 
 # Available genres

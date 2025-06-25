@@ -3,6 +3,7 @@ import pickle
 import pandas as pd
 import requests
 import os
+import io
 from db import get_watchlist, remove_from_watchlist, clear_watchlist
 from utils import show_movie_details, show_logout_button
 import streamlit as st
@@ -18,8 +19,14 @@ if not st.session_state.get("logged_in", False):
     st.stop()
 
 # Load movie data
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-movies_dict = pickle.load(open(os.path.join(BASE_DIR, 'movie_dict.pkl'), 'rb'))
+def load_pickle_from_gdrive(file_id):
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    response = requests.get(url)
+    return pickle.load(io.BytesIO(response.content))
+
+# Load movie_dict.pkl from Google Drive
+movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
+movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
 movies = pd.DataFrame(movies_dict)
 
 # 📦 Movie metadata
