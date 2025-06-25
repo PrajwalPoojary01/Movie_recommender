@@ -5,38 +5,33 @@ import requests
 import io
 from utils import show_movie_details, show_logout_button
 from db import get_history
-import streamlit as st
-API_KEY = st.secrets["TMDB_API_KEY"]
 
+API_KEY = st.secrets["TMDB_API_KEY"]
 
 st.set_page_config(page_title="Recommender", layout="wide")
 show_logout_button()
 
-# 🔐 Block if not logged in
 if not st.session_state.get("logged_in", False):
     st.warning("Please log in to use the recommender.")
     st.stop()
 
-# Load movie data
 def load_pickle_from_gdrive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     response = requests.get(url)
     return pickle.load(io.BytesIO(response.content))
 
-# Load files from Google Drive
 movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
 similarity_file_id = "1XqsEgeNAtif14CnNSBPBRad4iJDTDE08"
 
 movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
 similarity = load_pickle_from_gdrive(similarity_file_id)
+movies = pd.DataFrame(movies_dict)
 
-# Initialize state
 if "selected_movie_id" not in st.session_state:
     st.session_state.selected_movie_id = None
 if "recommended" not in st.session_state:
     st.session_state.recommended = False
 
-# 📦 Poster fetch
 def fetch_poster_path(movie_id):
     try:
         res = requests.get(f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&language=en-US")
@@ -46,7 +41,6 @@ def fetch_poster_path(movie_id):
         pass
     return ""
 
-# 🎯 Recommend based on selected movie
 def recommend(movie):
     movie_index = movies[movies["title"] == movie].index[0]
     distances = similarity[movie_index]
@@ -63,7 +57,6 @@ def recommend(movie):
         posters.append(poster_url)
     return titles, posters, ids
 
-# 🧠 Recommend based on user's watch history
 def recommend_from_history(user_id):
     watched = get_history(user_id)
     if not watched:
@@ -84,8 +77,7 @@ def recommend_from_history(user_id):
                     continue
                 recommended_scores[recommended_id] = recommended_scores.get(recommended_id, 0) + score
 
-    sorted_recs = sorted(recommended_scores.items(), key=lambda x: x[1], reverse=True)
-    sorted_recs = sorted_recs[:5]
+    sorted_recs = sorted(recommended_scores.items(), key=lambda x: x[1], reverse=True)[:5]
 
     titles, ids, posters = [], [], []
     for movie_id, _ in sorted_recs:
@@ -99,7 +91,6 @@ def recommend_from_history(user_id):
             posters.append(poster_url)
     return titles, posters, ids
 
-# 📽️ Detail View
 if st.session_state.selected_movie_id:
     show_movie_details(
         movie_id=st.session_state.selected_movie_id,
@@ -111,14 +102,12 @@ if st.session_state.selected_movie_id:
         st.session_state.selected_movie_id = None
         st.rerun()
 
-# 🎬 Main View
 else:
     st.title("🎬 Movie Recommender")
 
     selected_movie = st.selectbox("Choose a movie:", movies["title"].values)
 
     col_rec, col_surprise = st.columns([1, 1])
-
     with col_rec:
         if st.button("🎯 Show Recommendation"):
             st.session_state.recommended = True
@@ -140,7 +129,6 @@ else:
                     st.session_state.selected_movie_id = ids[i]
                     st.rerun()
 
-        # 📈 Personalized Section
         hist_titles, hist_posters, hist_ids = recommend_from_history(st.session_state.user_id)
         if hist_titles:
             st.markdown("---")

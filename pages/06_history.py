@@ -2,29 +2,24 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
-import os
+import io
 from db import get_history, clear_history
 from utils import show_movie_details, show_logout_button
-import streamlit as st
+
 API_KEY = st.secrets["TMDB_API_KEY"]
 
-
-
-# ✅ Logout button in sidebar
+st.set_page_config(page_title="Watch History", layout="wide")
 show_logout_button()
 
-# 🔐 Require login
 if not st.session_state.get("logged_in", False):
     st.warning("Please log in to view your history.")
     st.stop()
 
-# Load movie data
 def load_pickle_from_gdrive(file_id):
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
     response = requests.get(url)
     return pickle.load(io.BytesIO(response.content))
 
-# Load movie_dict.pkl from Google Drive
 movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
 movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
 movies = pd.DataFrame(movies_dict)
@@ -35,7 +30,6 @@ history = get_history(user_id)
 
 st.title("📜 Watched History")
 
-# ✅ Show detail view if selected
 if st.session_state.get("selected_movie_id"):
     show_movie_details(
         movie_id=st.session_state.selected_movie_id,
@@ -48,7 +42,6 @@ if st.session_state.get("selected_movie_id"):
         st.session_state.selected_movie_id = None
         st.rerun()
 
-# 🧹 Clear History
 elif not history:
     st.info("You haven't marked any movies as watched.")
 else:
@@ -67,7 +60,6 @@ else:
                 st.write(f"❌ Skipping '{title}' due to invalid movie_id: {e}")
                 continue
 
-            # Fetch poster
             try:
                 response = requests.get(f"https://api.themoviedb.org/3/movie/{movie_id_int}?api_key={API_KEY}&language=en-US")
                 data = response.json()

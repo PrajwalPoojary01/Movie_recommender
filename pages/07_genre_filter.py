@@ -2,8 +2,9 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
+import io
 from utils import show_movie_details, show_logout_button
-import streamlit as st
+
 API_KEY = st.secrets["TMDB_API_KEY"]
 
 st.set_page_config(page_title="Genre Filter", layout="wide")
@@ -20,19 +21,16 @@ def load_pickle_from_gdrive(file_id):
     response = requests.get(url)
     return pickle.load(io.BytesIO(response.content))
 
-# Load movie_dict.pkl from Google Drive
 movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
 movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
 movies = pd.DataFrame(movies_dict)
 
-# Available genres
 available_genres = sorted([
     "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary",
     "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery",
     "Romance", "Science Fiction", "TV Movie", "Thriller", "War", "Western"
 ])
 
-# TMDb genre mapping (hardcoded, or fetch from API if needed)
 genre_map = {
     "Action": 28, "Adventure": 12, "Animation": 16, "Comedy": 35,
     "Crime": 80, "Documentary": 99, "Drama": 18, "Family": 10751,
@@ -41,7 +39,6 @@ genre_map = {
     "TV Movie": 10770, "Thriller": 53, "War": 10752, "Western": 37
 }
 
-# Fetch movies by genre from TMDb
 def fetch_movies_by_genre(genre_id):
     try:
         res = requests.get(
@@ -52,10 +49,9 @@ def fetch_movies_by_genre(genre_id):
     except:
         return []
 
-# Show movie posters and buttons
 def display_genre_movies(movie_list):
     cols = st.columns(5)
-    for i, movie in enumerate(movie_list[:15]):  # limit to 15 movies
+    for i, movie in enumerate(movie_list[:15]):
         movie_id = movie["id"]
         title = movie["title"]
         poster_path = movie.get("poster_path")
@@ -67,7 +63,7 @@ def display_genre_movies(movie_list):
                 st.session_state.selected_movie_id = movie_id
                 st.rerun()
 
-# 🔍 Detail view
+# 🔍 Detail View
 if st.session_state.get("selected_movie_id"):
     show_movie_details(
         movie_id=st.session_state.selected_movie_id,
@@ -79,10 +75,9 @@ if st.session_state.get("selected_movie_id"):
         st.session_state.selected_movie_id = None
         st.rerun()
 
-# 🎯 Genre selection and movie grid
+# 🎯 Main Genre Filter UI
 else:
     st.title("🎭 Browse by Genre")
-
     selected_genre = st.selectbox("Choose a genre:", available_genres)
     if selected_genre:
         genre_id = genre_map[selected_genre]
