@@ -2,7 +2,6 @@ import streamlit as st
 import pickle
 import pandas as pd
 import requests
-import io
 from utils import show_movie_details, show_logout_button
 from db import get_history
 
@@ -15,47 +14,30 @@ if not st.session_state.get("logged_in", False):
     st.warning("Please log in to use the recommender.")
     st.stop()
 
-# ✅ Load large files safely from Google Drive
-def load_pickle_from_gdrive(file_id):
-    def get_confirm_token(response):
-        for key, value in response.cookies.items():
-            if key.startswith('download_warning'):
-                return value
-        return None
-
-    session = requests.Session()
-    URL = "https://drive.google.com/uc?export=download"
-    response = session.get(URL, params={'id': file_id}, stream=True)
-    token = get_confirm_token(response)
-
-    if token:
-        response = session.get(URL, params={'id': file_id, 'confirm': token}, stream=True)
-
-    file_bytes = io.BytesIO(response.content)
-    return pickle.load(file_bytes)
-
-# 🔽 Google Drive file IDs
-movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
-similarity_file_id = "1XqsEgeNAtif14CnNSBPBRad4iJDTDE08"
-
-movies_dict = load_pickle_from_gdrive(movie_dict_file_id)
-similarity = load_pickle_from_gdrive(similarity_file_id)
+# ✅ Load from local files
+movies_dict = pickle.load(open("movie_dict.pkl", "rb"))
+similarity = pickle.load(open("similarity.pkl", "rb"))
 movies = pd.DataFrame(movies_dict)
 
+# 🔄 Session state
 if "selected_movie_id" not in st.session_state:
     st.session_state.selected_movie_id = None
 if "recommended" not in st.session_state:
     st.session_state.recommended = False
 
+# 📦 Poster fetch
 def fetch_poster_path(movie_id):
     try:
-        res = requests.get(f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&language=en-US")
+        res = requests.get(
+            f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&language=en-US"
+        )
         if res.status_code == 200:
             return res.json().get("poster_path", "")
     except:
         pass
     return ""
 
+# 🎯 Recommend based on movie
 def recommend(movie):
     movie_index = movies[movies["title"] == movie].index[0]
     distances = similarity[movie_index]
@@ -72,6 +54,7 @@ def recommend(movie):
         posters.append(poster_url)
     return titles, posters, ids
 
+# 🧠 Recommend based on watch history
 def recommend_from_history(user_id):
     watched = get_history(user_id)
     if not watched:
@@ -106,6 +89,7 @@ def recommend_from_history(user_id):
             posters.append(poster_url)
     return titles, posters, ids
 
+# 🎥 Detail view
 if st.session_state.selected_movie_id:
     show_movie_details(
         movie_id=st.session_state.selected_movie_id,
@@ -117,6 +101,7 @@ if st.session_state.selected_movie_id:
         st.session_state.selected_movie_id = None
         st.rerun()
 
+# 🧠 Main recommender view
 else:
     st.title("🎬 Movie Recommender")
 
