@@ -15,11 +15,26 @@ if not st.session_state.get("logged_in", False):
     st.warning("Please log in to use the recommender.")
     st.stop()
 
+# ✅ Load large files safely from Google Drive
 def load_pickle_from_gdrive(file_id):
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    response = requests.get(url)
-    return pickle.load(io.BytesIO(response.content))
+    def get_confirm_token(response):
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                return value
+        return None
 
+    session = requests.Session()
+    URL = "https://drive.google.com/uc?export=download"
+    response = session.get(URL, params={'id': file_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        response = session.get(URL, params={'id': file_id, 'confirm': token}, stream=True)
+
+    file_bytes = io.BytesIO(response.content)
+    return pickle.load(file_bytes)
+
+# 🔽 Google Drive file IDs
 movie_dict_file_id = "1gKScLJTgWr-y0PG7sLDn1AjqfjRwQX9I"
 similarity_file_id = "1XqsEgeNAtif14CnNSBPBRad4iJDTDE08"
 
