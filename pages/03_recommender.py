@@ -1,96 +1,73 @@
 import streamlit as st
-import pickle
-import pandas as pd
 import requests
 from utils import show_movie_details, show_logout_button
 from db import get_history
+import random
 
 API_KEY = st.secrets["TMDB_API_KEY"]
 
 st.set_page_config(page_title="Recommender", layout="wide")
 show_logout_button()
 
+# 🔐 Block if not logged in
 if not st.session_state.get("logged_in", False):
     st.warning("Please log in to use the recommender.")
     st.stop()
 
-# ✅ Load from local files
-movies_dict = pickle.load(open("movie_dict.pkl", "rb"))
-similarity = pickle.load(open("similarity.pkl", "rb"))
-movies = pd.DataFrame(movies_dict)
-
-# 🔄 Session state
-if "selected_movie_id" not in st.session_state:
-    st.session_state.selected_movie_id = None
-if "recommended" not in st.session_state:
-    st.session_state.recommended = False
-
-# 📦 Poster fetch
-def fetch_poster_path(movie_id):
+# 📦 Fetch popular movies for the dropdown
+def fetch_popular_movies():
     try:
         res = requests.get(
-            f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&language=en-US"
+            f"https://api.themoviedb.org/3/movie/popular?api_key={API_KEY}&language=en-US&page=1"
         )
-        if res.status_code == 200:
-            return res.json().get("poster_path", "")
+        res.raise_for_status()
+        return res.json().get("results", [])
     except:
-        pass
-    return ""
+        return []
 
-# 🎯 Recommend based on movie
-def recommend(movie):
-    movie_index = movies[movies["title"] == movie].index[0]
-    distances = similarity[movie_index]
-    movie_list = sorted(enumerate(distances), key=lambda x: x[1], reverse=True)[1:6]
+# 📦 Fetch similar movies
+def fetch_similar_movies(movie_id):
+    try:
+        res = requests.get(
+            f"https://api.themoviedb.org/3/movie/{movie_id}/similar?api_key={API_KEY}&language=en-US&page=1"
+        )
+        res.raise_for_status()
+        return res.json().get("results", [])
+    except:
+        return []
 
-    titles, ids, posters = [], [], []
-    for i in movie_list:
-        movie_id = movies.iloc[i[0]].movie_id
-        title = movies.iloc[i[0]].title
-        poster_path = fetch_poster_path(movie_id)
-        poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/300x450?text=No+Poster"
-        titles.append(title)
-        ids.append(movie_id)
-        posters.append(poster_url)
-    return titles, posters, ids
-
-# 🧠 Recommend based on watch history
+# 📦 Recommend from history
 def recommend_from_history(user_id):
     watched = get_history(user_id)
     if not watched:
-        return [], [], []
+        return []
 
-    recommended_scores = {}
-    watched_titles = [w[0] for w in watched]
-    watched_ids = [int.from_bytes(w[1], 'little') if isinstance(w[1], bytes) else int(w[1]) for w in watched]
+    recommended_movies = []
+    for _, movie_id, _ in watched[:3]:  # limit to 3 most recent
+        movie_id_int = int.from_bytes(movie_id, 'little') if isinstance(movie_id, bytes) else int(movie_id)
+        similar = fetch_similar_movies(movie_id_int)
+        for m in similar:
+            if m not in recommended_movies:
+                recommended_movies.append(m)
+    return recommended_movies[:5]
 
-    for title, movie_id in zip(watched_titles, watched_ids):
-        movie_row = movies[movies["title"] == title]
-        if not movie_row.empty:
-            idx = movie_row.index[0]
-            scores = list(enumerate(similarity[idx]))
-            for i, score in scores:
-                recommended_id = movies.iloc[i].movie_id
-                if recommended_id in watched_ids:
-                    continue
-                recommended_scores[recommended_id] = recommended_scores.get(recommended_id, 0) + score
+# 🎯 Display movies
+def display_movies(movie_list, key_prefix):
+    cols = st.columns(5)
+    for i, movie in enumerate(movie_list[:5]):
+        movie_id = movie["id"]
+        title = movie["title"]
+        poster_path = movie.get("poster_path")
+        poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/300x450?text=No+Poster"
 
-    sorted_recs = sorted(recommended_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+        with cols[i % 5]:
+            st.image(poster_url)
+            if st.button(f"ℹ️ {title}", key=f"{key_prefix}_{i}"):
+                st.session_state.selected_movie_id = movie_id
+                st.rerun()
 
-    titles, ids, posters = [], [], []
-    for movie_id, _ in sorted_recs:
-        row = movies[movies["movie_id"] == movie_id]
-        if not row.empty:
-            title = row.iloc[0].title
-            poster_path = fetch_poster_path(movie_id)
-            poster_url = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else "https://via.placeholder.com/300x450?text=No+Poster"
-            titles.append(title)
-            ids.append(movie_id)
-            posters.append(poster_url)
-    return titles, posters, ids
-
-# 🎥 Detail view
-if st.session_state.selected_movie_id:
+# 📽️ Detail View
+if st.session_state.get("selected_movie_id"):
     show_movie_details(
         movie_id=st.session_state.selected_movie_id,
         api_key=API_KEY,
@@ -101,42 +78,34 @@ if st.session_state.selected_movie_id:
         st.session_state.selected_movie_id = None
         st.rerun()
 
-# 🧠 Main recommender view
+# 🎬 Main View
 else:
     st.title("🎬 Movie Recommender")
 
-    selected_movie = st.selectbox("Choose a movie:", movies["title"].values)
+    popular_movies = fetch_popular_movies()
+    movie_titles = [m["title"] for m in popular_movies]
+    movie_lookup = {m["title"]: m["id"] for m in popular_movies}
+
+    selected_movie = st.selectbox("Choose a movie:", movie_titles)
 
     col_rec, col_surprise = st.columns([1, 1])
+
     with col_rec:
-        if st.button("🎯 Show Recommendation"):
-            st.session_state.recommended = True
+        if st.button("🎯 Show Recommendations"):
+            similar_movies = fetch_similar_movies(movie_lookup[selected_movie])
+            if similar_movies:
+                st.subheader("🎯 Top Recommendations")
+                display_movies(similar_movies, "rec")
 
     with col_surprise:
         if st.button("🎲 Surprise Me"):
-            random_movie_id = movies.sample(1).iloc[0]["movie_id"]
-            st.session_state.selected_movie_id = int(random_movie_id)
+            random_movie = random.choice(popular_movies)
+            st.session_state.selected_movie_id = random_movie["id"]
             st.rerun()
 
-    if st.session_state.recommended:
-        titles, posters, ids = recommend(selected_movie)
-        st.subheader("🎯 Top Recommendations")
-        cols = st.columns(5)
-        for i in range(len(titles)):
-            with cols[i]:
-                st.image(posters[i])
-                if st.button(f"ℹ️ {titles[i]}", key=f"rec_{i}"):
-                    st.session_state.selected_movie_id = ids[i]
-                    st.rerun()
-
-        hist_titles, hist_posters, hist_ids = recommend_from_history(st.session_state.user_id)
-        if hist_titles:
-            st.markdown("---")
-            st.subheader("🧠 Because you watched:")
-            cols = st.columns(5)
-            for i in range(len(hist_titles)):
-                with cols[i]:
-                    st.image(hist_posters[i])
-                    if st.button(f"ℹ️ {hist_titles[i]}", key=f"histrec_{i}"):
-                        st.session_state.selected_movie_id = hist_ids[i]
-                        st.rerun()
+    # 📈 Personalized Section
+    history_recs = recommend_from_history(st.session_state.user_id)
+    if history_recs:
+        st.markdown("---")
+        st.subheader("🧠 Because you watched:")
+        display_movies(history_recs, "histrec")
